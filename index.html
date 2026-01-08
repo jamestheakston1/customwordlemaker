@@ -3,134 +3,287 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Custom Wordle Maker</title>
+    <title>Wordle Custom | Premium Maker</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/feather-icons"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f8fafc;
+            color: #0f172a;
+        }
+
         @keyframes shake {
             0%, 100% { transform: translateX(0); }
-            20%, 60% { transform: translateX(-5px); }
-            40%, 80% { transform: translateX(5px); }
+            20%, 60% { transform: translateX(-4px); }
+            40%, 80% { transform: translateX(4px); }
         }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .animate-float { animation: float 4s ease-in-out infinite; }
         .animate-shake { animation: shake 0.2s ease-in-out 2; }
-        .tile { transition: transform 0.6s, background-color 0.6s; transform-style: preserve-3d; }
-        .flip { transform: rotateX(180deg); }
+        
+        .tile { 
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            perspective: 1000px;
+        }
+        
+        .flip { transform: rotateX(360deg); }
+        
         .tile-correct { background-color: #6aaa64 !important; border-color: #6aaa64 !important; color: white !important; }
         .tile-present { background-color: #c9b458 !important; border-color: #c9b458 !important; color: white !important; }
         .tile-absent { background-color: #787c7e !important; border-color: #787c7e !important; color: white !important; }
-        .tile-empty { border-color: #d3d6da; color: black; }
-        .tile-active { border-color: #878a8c; color: black; }
-        .modal-overlay { background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); }
+        
+        .key-btn {
+            transition: transform 0.1s ease, background-color 0.2s ease;
+        }
+        
+        .key-btn:active { transform: scale(0.95); }
+
+        .modal-overlay {
+            background: rgba(15, 23, 42, 0.4);
+            backdrop-filter: blur(4px);
+        }
+
+        .hero-bg {
+            background: radial-gradient(circle at top right, #f1f5f9, #ffffff);
+        }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-900 min-h-screen flex flex-col items-center">
+<body class="min-h-screen selection:bg-green-100">
 
-    <div id="app" class="w-full max-w-md px-4 py-8">
-        <header class="flex justify-between items-center mb-6 border-b border-gray-200 pb-4">
-            <button id="navHomeBtn" class="p-2 hover:bg-gray-200 rounded-full transition text-gray-600">
-                <i data-feather="home"></i>
+    <div id="criticalErrorModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-6 modal-overlay">
+        <div class="bg-white w-full max-w-sm rounded-[3rem] p-12 shadow-2xl text-center space-y-8 border border-red-100">
+            <div class="mx-auto w-20 h-20 bg-red-50 rounded-[2rem] flex items-center justify-center text-red-500 shadow-inner">
+                <i data-feather="alert-octagon" class="w-10 h-10"></i>
+            </div>
+            <div>
+                <h2 class="text-2xl font-black tracking-tight text-slate-900">Service Unavailable</h2>
+                <p class="text-slate-500 mt-4 font-medium leading-relaxed">Wordle Studio is currently unavailable. Check console for more information.</p>
+            </div>
+            <button onclick="window.location.reload()" class="w-full bg-slate-900 text-white py-5 rounded-3xl font-black hover:bg-slate-800 transition-all">Retry Connection</button>
+        </div>
+    </div>
+
+    <div id="landingPage" class="hidden min-h-screen flex flex-col hero-bg overflow-hidden">
+        <nav class="flex justify-between items-center px-8 py-6 max-w-7xl mx-auto w-full">
+            <div class="flex items-center gap-2">
+                <div class="w-9 h-9 bg-slate-900 rounded-xl flex items-center justify-center text-white shadow-lg">
+                    <i data-feather="grid" class="w-5 h-5"></i>
+                </div>
+                <span class="font-black tracking-tighter text-xl text-slate-900">WORDLE STUDIO</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <button onclick="showAuth()" class="text-slate-600 font-bold hover:text-slate-900 transition-all text-sm">Sign In</button>
+                <button onclick="showAuth()" class="bg-slate-900 text-white px-6 py-2.5 rounded-full font-bold hover:bg-slate-800 transition-all text-sm shadow-md">Get Started</button>
+            </div>
+        </nav>
+
+        <main class="flex-1 flex flex-col items-center justify-center px-6 text-center relative pt-12">
+            <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-green-200/30 rounded-full blur-[100px] -z-10"></div>
+            <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-200/30 rounded-full blur-[100px] -z-10"></div>
+
+            <div class="animate-float mb-12 flex gap-3">
+                <div class="w-14 h-14 rounded-2xl bg-white shadow-xl flex items-center justify-center font-black text-2xl border border-slate-100 text-green-600">P</div>
+                <div class="w-14 h-14 rounded-2xl bg-white shadow-xl flex items-center justify-center font-black text-2xl border border-slate-100 text-slate-400">L</div>
+                <div class="w-14 h-14 rounded-2xl bg-white shadow-xl flex items-center justify-center font-black text-2xl border border-slate-100 text-yellow-500">A</div>
+                <div class="w-14 h-14 rounded-2xl bg-white shadow-xl flex items-center justify-center font-black text-2xl border border-slate-100 text-slate-400">Y</div>
+            </div>
+
+            <h1 class="text-6xl md:text-8xl font-black tracking-tighter max-w-4xl leading-[0.85] mb-8 text-slate-900">
+                CREATE YOUR OWN <span class="text-green-600">WORDLE</span> LEGACY.
+            </h1>
+            <p class="text-slate-500 text-lg md:text-2xl max-w-2xl mb-12 leading-relaxed font-medium">
+                The most powerful custom wordle builder. Design challenges, share with friends, and track your library in a premium light-weight interface.
+            </p>
+            
+            <div class="flex flex-col sm:flex-row gap-4 w-full max-w-lg mb-20">
+                <button onclick="triggerCreateAttempt()" class="flex-1 bg-green-600 hover:bg-green-700 text-white py-6 rounded-3xl font-black text-xl transition-all shadow-xl shadow-green-200 uppercase tracking-tight">
+                    Start Creating
+                </button>
+                <button onclick="showAuth()" class="flex-1 bg-white hover:bg-slate-50 text-slate-900 border border-slate-200 py-6 rounded-3xl font-black text-xl transition-all shadow-sm uppercase tracking-tight">
+                    Join Studio
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl w-full">
+                <div class="bg-white p-8 rounded-[2rem] border border-slate-100 text-left shadow-sm">
+                    <div class="w-12 h-12 bg-green-50 rounded-2xl flex items-center justify-center text-green-600 mb-6"><i data-feather="edit-2"></i></div>
+                    <h3 class="font-black text-xl mb-3">Custom Words</h3>
+                    <p class="text-slate-500 leading-relaxed">Choose any word length. No more 5-letter limits for your creative puzzles.</p>
+                </div>
+                <div class="bg-white p-8 rounded-[2rem] border border-slate-100 text-left shadow-sm">
+                    <div class="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 mb-6"><i data-feather="link"></i></div>
+                    <h3 class="font-black text-xl mb-3">Instant Links</h3>
+                    <p class="text-slate-500 leading-relaxed">Generated links work anywhere. No app install required for players.</p>
+                </div>
+                <div class="bg-white p-8 rounded-[2rem] border border-slate-100 text-left shadow-sm">
+                    <div class="w-12 h-12 bg-purple-50 rounded-2xl flex items-center justify-center text-purple-600 mb-6"><i data-feather="cloud"></i></div>
+                    <h3 class="font-black text-xl mb-3">Cloud Library</h3>
+                    <p class="text-slate-500 leading-relaxed">Sync your creations across devices and keep track of your most played games.</p>
+                </div>
+            </div>
+        </main>
+        
+        <footer class="py-12 text-center text-slate-400 text-[10px] font-black tracking-[0.3em] uppercase">
+            Designed for Enthusiasts &bull; 2024
+        </footer>
+    </div>
+
+    <div id="app" class="hidden w-full max-w-lg px-6 py-6 flex flex-col min-h-screen mx-auto">
+        <header class="flex justify-between items-center mb-10">
+            <button id="navHomeBtn" class="p-3 bg-white hover:bg-slate-50 rounded-2xl transition-all text-slate-400 shadow-sm border border-slate-100">
+                <i data-feather="grid" class="w-5 h-5"></i>
             </button>
-            <h1 class="text-2xl font-black tracking-tighter text-center flex-1">WORDLE <span class="text-green-600">CUSTOM</span></h1>
-            <button id="authBtn" class="p-2 hover:bg-gray-200 rounded-full transition text-gray-600">
-                <i data-feather="user"></i>
+            <div class="text-center">
+                <h1 class="text-2xl font-black tracking-tighter uppercase leading-none text-slate-900">Wordle</h1>
+                <span class="text-[10px] font-black text-green-600 tracking-[0.3em] uppercase">Studio</span>
+            </div>
+            <button id="authBtn" class="p-3 bg-white hover:bg-slate-50 rounded-2xl transition-all text-slate-400 shadow-sm border border-slate-100">
+                <i data-feather="user" class="w-5 h-5"></i>
             </button>
         </header>
 
-        <div id="authView" class="hidden space-y-4 text-center">
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                <h2 id="authTitle" class="text-xl font-bold mb-4">Login / Sign Up</h2>
-                <input type="email" id="emailInput" placeholder="Email" class="w-full mb-3 p-3 bg-gray-50 border border-gray-300 rounded focus:ring-2 focus:ring-green-500 outline-none">
-                <input type="password" id="passwordInput" placeholder="Password" class="w-full mb-4 p-3 bg-gray-50 border border-gray-300 rounded focus:ring-2 focus:ring-green-500 outline-none">
-                <div class="grid grid-cols-2 gap-2">
-                    <button id="loginBtn" class="bg-green-600 text-white py-2 rounded font-bold hover:bg-green-700">Login</button>
-                    <button id="signUpBtn" class="border border-green-600 text-green-600 py-2 rounded font-bold hover:bg-green-50">Sign Up</button>
+        <div id="authView" class="hidden space-y-6">
+            <div class="bg-white p-10 rounded-[2.5rem] shadow-xl border border-slate-100">
+                <div class="mb-10">
+                    <h2 class="text-3xl font-black tracking-tight text-slate-900">Welcome Back</h2>
+                    <p class="text-slate-500 mt-2 font-medium">Join the community to start building.</p>
+                </div>
+                <div class="space-y-4">
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Email</label>
+                        <input type="email" id="emailInput" placeholder="name@example.com" class="w-full p-5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-green-500/10 focus:border-green-500 outline-none transition-all font-medium">
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Password</label>
+                        <input type="password" id="passwordInput" placeholder="••••••••" class="w-full p-5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-green-500/10 focus:border-green-500 outline-none transition-all font-medium">
+                    </div>
+                    <div class="grid grid-cols-1 gap-3 pt-6">
+                        <button id="loginBtn" class="bg-slate-900 text-white py-5 rounded-2xl font-black hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 text-lg">Sign In</button>
+                        <button id="signUpBtn" class="bg-white text-slate-900 border border-slate-200 py-5 rounded-2xl font-black hover:bg-slate-50 transition-all text-lg">Create Account</button>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div id="dashboardView" class="hidden space-y-6">
-            <div class="flex justify-between items-center bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-                <div id="userEmail" class="text-sm font-medium text-gray-500 truncate mr-2"></div>
-                <button id="logoutBtn" class="text-xs text-red-600 font-bold uppercase tracking-wider">Logout</button>
+        <div id="dashboardView" class="hidden space-y-10 flex-1">
+            <div class="flex items-center justify-between bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 bg-green-100 rounded-2xl flex items-center justify-center text-green-600 shadow-inner">
+                        <i data-feather="user" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <div id="userEmail" class="text-sm font-black text-slate-800 max-w-[150px] truncate"></div>
+                        <div class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Creator Profile</div>
+                    </div>
+                </div>
+                <button id="logoutBtn" class="text-[10px] font-black uppercase tracking-widest text-red-500 bg-red-50 px-4 py-2.5 rounded-xl hover:bg-red-100 transition-colors">Logout</button>
             </div>
 
-            <div class="space-y-2">
-                <h3 class="font-bold text-gray-400 uppercase text-xs tracking-widest px-1">Created By You</h3>
-                <div id="createdList" class="space-y-2"></div>
+            <div class="space-y-6">
+                <div class="flex items-center justify-between px-2">
+                    <h3 class="font-black text-xs text-slate-400 uppercase tracking-[0.2em]">Studio Creations</h3>
+                    <span id="createdCount" class="text-[10px] bg-slate-900 text-white px-3 py-1 rounded-full font-black">0</span>
+                </div>
+                <div id="createdList" class="grid gap-4"></div>
             </div>
 
-            <div class="space-y-2">
-                <h3 class="font-bold text-gray-400 uppercase text-xs tracking-widest px-1">Saved Wordles</h3>
-                <div id="savedList" class="space-y-2"></div>
+            <div class="space-y-6">
+                <div class="flex items-center justify-between px-2">
+                    <h3 class="font-black text-xs text-slate-400 uppercase tracking-[0.2em]">Saved Puzzles</h3>
+                </div>
+                <div id="savedList" class="grid gap-4"></div>
             </div>
 
-            <button id="createNewBtn" class="w-full bg-green-600 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-green-700 transition flex items-center justify-center gap-2">
-                <i data-feather="plus"></i> Create New Wordle
-            </button>
+            <div class="sticky bottom-8">
+                <button id="createNewBtn" class="w-full bg-green-600 text-white py-6 rounded-[2rem] font-black shadow-2xl shadow-green-200 hover:bg-green-700 hover:-translate-y-1 transition-all flex items-center justify-center gap-4 uppercase tracking-widest text-sm border-b-4 border-green-800">
+                    <i data-feather="plus" class="w-5 h-5"></i> New Wordle
+                </button>
+            </div>
         </div>
 
-        <div id="createMode" class="space-y-6">
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                <h2 class="text-xl font-semibold mb-4 text-gray-800">Design Challenge</h2>
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-600 mb-1">Secret Word</label>
-                        <input type="text" id="targetWordInput" class="w-full bg-gray-50 border border-gray-300 p-3 rounded text-center text-2xl uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-800" placeholder="ANY LENGTH">
+        <div id="createMode" class="hidden space-y-8">
+            <div class="bg-white p-10 rounded-[3rem] shadow-xl border border-slate-100">
+                <div class="mb-10">
+                    <h2 class="text-3xl font-black tracking-tight text-slate-900">Builder</h2>
+                    <p class="text-slate-500 font-medium">Design your custom word challenge.</p>
+                </div>
+                <div class="space-y-6">
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Target Word</label>
+                        <input type="text" id="targetWordInput" class="w-full bg-slate-50 border border-slate-200 p-6 rounded-3xl text-center text-4xl font-black uppercase tracking-[0.4em] focus:ring-4 focus:ring-green-500/10 focus:border-green-500 outline-none transition-all placeholder:text-slate-200 text-slate-900" placeholder="WORD">
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-600 mb-1">Optional Hint</label>
-                        <input type="text" id="hintInput" placeholder="Clue for the player" class="w-full bg-gray-50 border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-800">
+                    <div class="space-y-2">
+                        <label class="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">The Hint (Optional)</label>
+                        <textarea id="hintInput" rows="2" placeholder="Describe the word..." class="w-full bg-slate-50 border border-slate-200 p-5 rounded-3xl focus:ring-4 focus:ring-green-500/10 focus:border-green-500 outline-none transition-all resize-none font-medium"></textarea>
                     </div>
-                    <button id="generateBtn" class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-bold transition flex items-center justify-center gap-2">
-                        <i data-feather="zap" class="w-5 h-5 text-yellow-300 fill-current"></i> Create Wordle
+                    <button id="generateBtn" class="w-full bg-slate-900 text-white py-6 rounded-3xl font-black shadow-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-4 uppercase tracking-widest text-sm mt-4">
+                        <i data-feather="zap" class="w-5 h-5 text-yellow-400 fill-current"></i> Create Game
                     </button>
                 </div>
             </div>
 
-            <div id="shareSection" class="hidden bg-white p-6 rounded-xl border-2 border-green-500 shadow-sm">
-                <p class="text-sm text-gray-600 mb-2 font-medium">Link Created!</p>
+            <div id="shareSection" class="hidden bg-green-50 p-8 rounded-[2.5rem] border-2 border-green-200 shadow-xl">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="w-10 h-10 bg-green-600 rounded-2xl flex items-center justify-center text-white shadow-lg">
+                        <i data-feather="check" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm font-black text-green-900 leading-none">Ready to Play</p>
+                        <p class="text-xs text-green-600 font-bold mt-1">Copy the link below</p>
+                    </div>
+                </div>
                 <div class="flex gap-2">
-                    <input type="text" id="shareUrl" readonly class="flex-1 bg-gray-50 p-2 rounded text-sm border border-gray-200 text-gray-700">
-                    <button id="copyBtn" class="bg-blue-600 text-white p-2 rounded hover:bg-blue-700"><i data-feather="copy" class="w-5 h-5"></i></button>
+                    <input type="text" id="shareUrl" readonly class="flex-1 bg-white p-4 rounded-2xl text-[10px] border border-green-100 text-slate-500 font-mono focus:outline-none">
+                    <button id="copyBtn" class="bg-green-600 text-white px-5 rounded-2xl hover:bg-green-700 transition-all active:scale-95 shadow-md">
+                        <i data-feather="copy" class="w-5 h-5"></i>
+                    </button>
                 </div>
             </div>
         </div>
 
-        <div id="gameMode" class="hidden flex flex-col items-center gap-6">
-            <div id="gameHint" class="text-gray-500 italic text-center text-sm mb-2 font-medium bg-gray-100 px-4 py-1 rounded-full"></div>
-            <div id="grid" class="grid gap-1.5 mb-4"></div>
-            <div id="keyboard" class="w-full max-w-sm space-y-2"></div>
+        <div id="gameMode" class="hidden flex flex-col items-center gap-10 flex-1 py-4">
+            <div id="gameHint" class="hidden text-slate-400 font-black text-[10px] tracking-[0.2em] uppercase bg-white shadow-sm border border-slate-100 px-8 py-3 rounded-2xl"></div>
+            <div id="grid" class="grid gap-2.5 mb-4 transition-all"></div>
+            <div id="keyboard" class="w-full max-w-md mt-auto space-y-2"></div>
         </div>
     </div>
 
-    <div id="endModal" class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4 modal-overlay">
-        <div class="bg-white w-full max-w-sm rounded-2xl p-8 shadow-2xl text-center space-y-6">
-            <div id="modalIcon" class="mx-auto w-16 h-16 rounded-full flex items-center justify-center"></div>
+    <div id="endModal" class="hidden fixed inset-0 z-[60] flex items-center justify-center p-6 modal-overlay">
+        <div class="bg-white w-full max-w-sm rounded-[3rem] p-12 shadow-2xl text-center space-y-10 border border-slate-50">
+            <div id="modalIcon" class="mx-auto w-24 h-24 rounded-[2rem] flex items-center justify-center rotate-6 shadow-xl"></div>
             <div>
-                <h2 id="modalTitle" class="text-2xl font-black"></h2>
-                <p id="modalSub" class="text-gray-500 mt-1"></p>
+                <h2 id="modalTitle" class="text-4xl font-black tracking-tight text-slate-900"></h2>
+                <p id="modalSub" class="text-slate-500 mt-3 font-medium text-lg"></p>
             </div>
             <div class="flex flex-col gap-3">
-                <button id="modalSaveBtn" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2">
-                    <i data-feather="bookmark" class="w-4 h-4"></i> Save to Collection
+                <button id="modalSaveBtn" class="w-full bg-blue-600 text-white py-5 rounded-3xl font-black shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all flex items-center justify-center gap-3">
+                    <i data-feather="bookmark" class="w-5 h-5"></i> Save to Library
                 </button>
-                <button id="modalCreateBtn" class="w-full bg-green-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2">
-                    <i data-feather="plus" class="w-4 h-4"></i> Create My Own
-                </button>
-                <button id="modalCloseBtn" class="text-gray-400 font-medium text-sm">Close</button>
+                <button id="modalCreateBtn" class="w-full bg-slate-900 text-white py-5 rounded-3xl font-black shadow-xl shadow-slate-200 hover:bg-slate-800 transition-all">Create New</button>
+                <button id="modalCloseBtn" class="text-slate-400 font-black text-[10px] uppercase tracking-widest pt-4">Dismiss</button>
             </div>
         </div>
     </div>
 
-    <div id="messageBox" class="fixed top-24 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-6 py-3 rounded-lg font-bold shadow-2xl opacity-0 transition-opacity duration-300 pointer-events-none z-[70]"></div>
+    <div id="messageBox" class="fixed bottom-12 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-8 py-4 rounded-2xl font-black shadow-2xl opacity-0 transition-all duration-300 pointer-events-none z-[70] text-sm tracking-tight border border-slate-700"></div>
 
     <script>
         const SUPABASE_URL = 'https://zhohhkuujpoxynxhvrev.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_5Wa_plUml3d0wOyl4yDgZw_u6bOLFBK';
         const SITE_URL = 'https://customwordlemaker.pages.dev/';
+        const BAD_WORDS_URL = 'https://www.cs.cmu.edu/~biglou/resources/bad-words.txt';
         const sbClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+        let badWords = new Set();
         let gameState = {
             targetWord: '',
             hint: '',
@@ -143,6 +296,8 @@
             user: null
         };
 
+        const landingPage = document.getElementById('landingPage');
+        const appContainer = document.getElementById('app');
         const createView = document.getElementById('createMode');
         const gameView = document.getElementById('gameMode');
         const dashboardView = document.getElementById('dashboardView');
@@ -150,20 +305,44 @@
         const grid = document.getElementById('grid');
         const keyboard = document.getElementById('keyboard');
 
+        async function fetchBadWords() {
+            try {
+                const response = await fetch(BAD_WORDS_URL);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const text = await response.text();
+                badWords = new Set(text.split('\n').map(w => w.trim().toLowerCase()).filter(w => w.length > 0));
+                return true;
+            } catch (err) {
+                console.error("Failed to load critical safety filter list:", err);
+                document.getElementById('criticalErrorModal').classList.remove('hidden');
+                feather.replace();
+                return false;
+            }
+        }
+
+        function containsBadWords(text) {
+            if (!text) return false;
+            const normalized = text.toLowerCase().trim();
+            const words = normalized.split(/[^a-z0-9]+/);
+            for (let word of words) {
+                if (badWords.has(word)) return true;
+            }
+            return false;
+        }
+
         async function init() {
+            const filterLoaded = await fetchBadWords();
+            if (!filterLoaded) return;
+
             const { data: { session } } = await sbClient.auth.getSession();
             handleAuthStateChange(session?.user);
 
             sbClient.auth.onAuthStateChange((_event, session) => {
                 handleAuthStateChange(session?.user);
                 if (session?.user) {
-                    if (gameView.classList.contains('hidden')) {
-                        showDashboard();
-                    } else {
-                        showMessage("Logged in!");
-                    }
+                    if (gameView.classList.contains('hidden')) showDashboard();
                 } else {
-                    showAuth();
+                    if (gameView.classList.contains('hidden')) showLanding();
                 }
             });
 
@@ -175,7 +354,7 @@
             } else if (session?.user) {
                 showDashboard();
             } else {
-                showCreate();
+                showLanding();
             }
 
             setupEventListeners();
@@ -185,8 +364,28 @@
         function handleAuthStateChange(user) {
             gameState.user = user;
             if (user) {
-                document.getElementById('userEmail').innerText = user.email;
+                const el = document.getElementById('userEmail');
+                if (el) el.innerText = user.email;
                 loadDashboardData();
+            }
+        }
+
+        function showLanding() {
+            landingPage.classList.remove('hidden');
+            appContainer.classList.add('hidden');
+        }
+
+        function hideLanding() {
+            landingPage.classList.add('hidden');
+            appContainer.classList.remove('hidden');
+        }
+
+        function triggerCreateAttempt() {
+            if (gameState.user) {
+                showCreate();
+            } else {
+                showMessage("Login required to create");
+                showAuth();
             }
         }
 
@@ -195,24 +394,59 @@
             const created = await sbClient.from('custom_wordles').select('*').eq('created_by', gameState.user.id);
             const saved = await sbClient.from('saved_wordles').select('custom_wordles(*)').eq('user_id', gameState.user.id);
 
-            renderList('createdList', created.data || []);
-            renderList('savedList', saved.data?.map(s => s.custom_wordles).filter(x => x) || []);
+            const countEl = document.getElementById('createdCount');
+            if (countEl) countEl.innerText = created.data?.length || 0;
+            
+            renderList('createdList', created.data || [], true);
+            renderList('savedList', saved.data?.map(s => s.custom_wordles).filter(x => x) || [], false);
         }
 
-        function renderList(containerId, data) {
+        async function deleteWordle(id, e) {
+            e.stopPropagation();
+            if (!confirm("Delete challenge?")) return;
+            const { error } = await sbClient.from('custom_wordles').delete().eq('id', id);
+            if (error) showMessage("Error deleting");
+            else loadDashboardData();
+        }
+
+        async function removeSaved(id, e) {
+            e.stopPropagation();
+            const { error } = await sbClient.from('saved_wordles').delete().eq('wordle_id', id).eq('user_id', gameState.user.id);
+            if (error) showMessage("Error removing");
+            else loadDashboardData();
+        }
+
+        function renderList(containerId, data, isOwner) {
             const container = document.getElementById(containerId);
-            container.innerHTML = data.length ? '' : '<p class="text-sm text-gray-400 italic px-2">No wordles found</p>';
+            if (!container) return;
+            container.innerHTML = data.length ? '' : `
+                <div class="text-center py-12 bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200">
+                    <p class="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em]">Workspace Ready</p>
+                </div>
+            `;
             data.forEach(item => {
                 const div = document.createElement('div');
-                div.className = 'bg-white p-3 rounded-lg border border-gray-200 flex justify-between items-center shadow-sm hover:border-green-500 cursor-pointer group';
+                div.className = 'bg-white p-6 rounded-3xl flex justify-between items-center shadow-sm hover:shadow-md hover:border-green-200 border border-slate-100 cursor-pointer group transition-all duration-300';
                 div.innerHTML = `
-                    <div>
-                        <div class="font-bold text-gray-800 uppercase tracking-wide">${item.word}</div>
-                        <div class="text-[10px] text-gray-400 font-mono">${item.id}</div>
+                    <div class="flex-1">
+                        <div class="flex items-center gap-3">
+                            <span class="font-black text-slate-900 uppercase tracking-tight text-xl">${item.word}</span>
+                            <span class="text-[9px] font-black px-2.5 py-1 bg-slate-100 text-slate-500 rounded-lg tracking-widest">${item.word.length} CHR</span>
+                        </div>
+                        <div class="text-[9px] text-slate-300 font-mono mt-2 tracking-widest uppercase">Key: ${item.id}</div>
                     </div>
-                    <i data-feather="chevron-right" class="w-4 h-4 text-gray-300 group-hover:text-green-500"></i>
+                    <div class="flex items-center gap-3">
+                        <button class="delete-btn p-3 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all">
+                            <i data-feather="trash-2" class="w-4 h-4"></i>
+                        </button>
+                        <div class="w-10 h-10 flex items-center justify-center text-slate-200 group-hover:text-green-500 transition-colors">
+                            <i data-feather="arrow-right" class="w-5 h-5"></i>
+                        </div>
+                    </div>
                 `;
                 div.onclick = () => window.location.search = `?wordle=${item.id}`;
+                const delBtn = div.querySelector('.delete-btn');
+                delBtn.onclick = (e) => isOwner ? deleteWordle(item.id, e) : removeSaved(item.id, e);
                 container.appendChild(div);
             });
             feather.replace();
@@ -233,10 +467,13 @@
             gameState.currentTile = 0;
             gameState.gameOver = false;
             
+            landingPage.classList.add('hidden');
+            appContainer.classList.remove('hidden');
             [createView, dashboardView, authView].forEach(v => v.classList.add('hidden'));
             gameView.classList.remove('hidden');
-            document.getElementById('gameHint').innerText = data.hint ? `Hint: ${data.hint}` : '';
-            document.getElementById('gameHint').classList.toggle('hidden', !data.hint);
+            const hintEl = document.getElementById('gameHint');
+            hintEl.innerText = data.hint ? `HINT: ${data.hint}` : '';
+            hintEl.classList.toggle('hidden', !data.hint);
             renderGrid();
             renderKeyboard();
         }
@@ -244,9 +481,11 @@
         function renderGrid() {
             grid.innerHTML = '';
             grid.style.gridTemplateColumns = `repeat(${gameState.wordLength}, 1fr)`;
-            for (let i = 0; i < 6 * gameState.wordLength; i++) {
+            const totalTiles = 6 * gameState.wordLength;
+            
+            for (let i = 0; i < totalTiles; i++) {
                 const tile = document.createElement('div');
-                tile.className = 'w-12 h-12 border-2 tile-empty flex items-center justify-center text-2xl font-bold uppercase rounded-sm tile';
+                tile.className = 'w-14 h-14 border-2 border-slate-100 flex items-center justify-center text-3xl font-black uppercase rounded-2xl tile bg-white shadow-sm';
                 tile.id = `tile-${i}`;
                 grid.appendChild(tile);
             }
@@ -254,11 +493,19 @@
 
         function setupEventListeners() {
             document.getElementById('generateBtn').onclick = async () => {
-                const word = document.getElementById('targetWordInput').value.trim().toUpperCase();
-                const hint = document.getElementById('hintInput').value.trim();
+                if (!gameState.user) return showAuth();
+                const wordInput = document.getElementById('targetWordInput');
+                const hintInput = document.getElementById('hintInput');
+                const word = wordInput.value.trim().toUpperCase();
+                const hint = hintInput.value.trim();
+                
                 if (word.length < 1) return showMessage("Word too short");
+                
+                if (containsBadWords(word) || containsBadWords(hint)) {
+                    return showMessage("Inappropriate language detected");
+                }
 
-                const { data, error } = await sbClient.from('custom_wordles').insert([{ word, hint, created_by: gameState.user?.id }]).select();
+                const { data, error } = await sbClient.from('custom_wordles').insert([{ word, hint, created_by: gameState.user.id }]).select();
                 if (error) return showMessage("Error saving");
                 
                 const link = `${SITE_URL}?wordle=${data[0].id}`;
@@ -271,7 +518,7 @@
                 const copyText = document.getElementById('shareUrl');
                 copyText.select();
                 document.execCommand("copy");
-                showMessage("Link copied!");
+                showMessage("Copied link!");
             };
 
             document.getElementById('authBtn').onclick = () => {
@@ -283,7 +530,7 @@
                 const email = document.getElementById('emailInput').value;
                 const password = document.getElementById('passwordInput').value;
                 const { error } = await sbClient.auth.signInWithPassword({ email, password });
-                if (error) showMessage(error.message);
+                if (error) showMessage("Login failed");
                 else showDashboard();
             };
 
@@ -292,7 +539,7 @@
                 const password = document.getElementById('passwordInput').value;
                 const { error } = await sbClient.auth.signUp({ email, password });
                 if (error) showMessage(error.message);
-                else showMessage("Signup successful! You can now login.");
+                else showMessage("Check your email!");
             };
 
             document.getElementById('logoutBtn').onclick = async () => {
@@ -300,8 +547,11 @@
                 window.location.href = SITE_URL;
             };
 
-            document.getElementById('createNewBtn').onclick = showCreate;
-            document.getElementById('navHomeBtn').onclick = () => window.location.href = SITE_URL;
+            document.getElementById('createNewBtn').onclick = triggerCreateAttempt;
+            document.getElementById('navHomeBtn').onclick = () => {
+                if (gameState.user) showDashboard();
+                else window.location.href = SITE_URL;
+            };
 
             document.getElementById('modalSaveBtn').onclick = async () => {
                 if (!gameState.user) {
@@ -310,11 +560,11 @@
                     return;
                 }
                 const { error } = await sbClient.from('saved_wordles').insert([{ user_id: gameState.user.id, wordle_id: gameState.id }]);
-                if (error) showMessage(error.code === '23505' ? "Already saved!" : "Error saving");
-                else showMessage("Added to collection!");
+                if (error) showMessage(error.code === '23505' ? "Already saved!" : "Error");
+                else showMessage("Saved!");
             };
 
-            document.getElementById('modalCreateBtn').onclick = () => window.location.href = SITE_URL;
+            document.getElementById('modalCreateBtn').onclick = triggerCreateAttempt;
             document.getElementById('modalCloseBtn').onclick = () => document.getElementById('endModal').classList.add('hidden');
 
             window.addEventListener('keydown', (e) => {
@@ -326,17 +576,21 @@
         }
 
         function showDashboard() {
+            hideLanding();
             [createView, gameView, authView].forEach(v => v.classList.add('hidden'));
             dashboardView.classList.remove('hidden');
             loadDashboardData();
         }
 
         function showAuth() {
+            hideLanding();
             [createView, gameView, dashboardView].forEach(v => v.classList.add('hidden'));
             authView.classList.remove('hidden');
         }
 
         function showCreate() {
+            if (!gameState.user) return showAuth();
+            hideLanding();
             [dashboardView, gameView, authView].forEach(v => v.classList.add('hidden'));
             createView.classList.remove('hidden');
         }
@@ -346,7 +600,9 @@
                 const index = (gameState.currentRow * gameState.wordLength) + gameState.currentTile;
                 const tile = document.getElementById(`tile-${index}`);
                 tile.innerText = letter;
-                tile.classList.replace('tile-empty', 'tile-active');
+                tile.classList.remove('border-slate-100');
+                tile.classList.add('border-slate-900', 'scale-110');
+                setTimeout(() => tile.classList.remove('scale-110'), 100);
                 gameState.guesses[gameState.currentRow] += letter;
                 gameState.currentTile++;
             }
@@ -358,7 +614,8 @@
                 const index = (gameState.currentRow * gameState.wordLength) + gameState.currentTile;
                 const tile = document.getElementById(`tile-${index}`);
                 tile.innerText = '';
-                tile.classList.replace('tile-active', 'tile-empty');
+                tile.classList.remove('border-slate-900');
+                tile.classList.add('border-slate-100');
                 gameState.guesses[gameState.currentRow] = gameState.guesses[gameState.currentRow].slice(0, -1);
             }
         }
@@ -367,7 +624,7 @@
             const guess = gameState.guesses[gameState.currentRow];
             if (guess.length !== gameState.wordLength) {
                 shakeRow();
-                return showMessage("Not enough letters");
+                return showMessage("Too short");
             }
 
             const rowStart = gameState.currentRow * gameState.wordLength;
@@ -393,7 +650,7 @@
                 const tile = document.getElementById(`tile-${rowStart + i}`);
                 setTimeout(() => {
                     tile.classList.add('flip');
-                    tile.classList.remove('tile-active', 'tile-empty');
+                    tile.classList.remove('border-slate-900', 'border-slate-100');
                     if (statuses[i] === 'correct') tile.classList.add('tile-correct');
                     else if (statuses[i] === 'present') tile.classList.add('tile-present');
                     else tile.classList.add('tile-absent');
@@ -416,10 +673,10 @@
             const title = document.getElementById('modalTitle');
             const sub = document.getElementById('modalSub');
 
-            title.innerText = win ? "Splendid!" : "Better luck next time";
-            sub.innerText = win ? `You guessed "${gameState.targetWord}"` : `The word was "${gameState.targetWord}"`;
-            icon.className = `mx-auto w-16 h-16 rounded-full flex items-center justify-center ${win ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'}`;
-            icon.innerHTML = `<i data-feather="${win ? 'award' : 'frown'}"></i>`;
+            title.innerText = win ? "BRILLIANT" : "TOUGH LUCK";
+            sub.innerText = win ? `Solved in ${gameState.currentRow + 1} attempts.` : `The word was "${gameState.targetWord}"`;
+            icon.className = `mx-auto w-24 h-24 rounded-[2rem] flex items-center justify-center rotate-6 shadow-xl ${win ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-400'}`;
+            icon.innerHTML = `<i data-feather="${win ? 'award' : 'frown'}" class="w-12 h-12"></i>`;
             
             modal.classList.remove('hidden');
             feather.replace();
@@ -429,14 +686,11 @@
             const btn = document.getElementById(`key-${key}`);
             if (!btn) return;
             if (status === 'correct') {
-                btn.classList.remove('bg-gray-200', 'bg-[#c9b458]');
-                btn.classList.add('bg-[#6aaa64]', 'text-white');
+                btn.className = 'key-btn bg-[#6aaa64] text-white flex-1 h-14 rounded-xl font-black transition-all';
             } else if (status === 'present' && !btn.classList.contains('bg-[#6aaa64]')) {
-                btn.classList.remove('bg-gray-200');
-                btn.classList.add('bg-[#c9b458]', 'text-white');
+                btn.className = 'key-btn bg-[#c9b458] text-white flex-1 h-14 rounded-xl font-black transition-all';
             } else if (status === 'absent' && !btn.classList.contains('bg-[#6aaa64]') && !btn.classList.contains('bg-[#c9b458]')) {
-                btn.classList.remove('bg-gray-200');
-                btn.classList.add('bg-[#787c7e]', 'text-white');
+                btn.className = 'key-btn bg-[#787c7e] text-white flex-1 h-14 rounded-xl font-black transition-all';
             }
         }
 
@@ -453,21 +707,21 @@
             keyboard.innerHTML = '';
             rows.forEach((row, idx) => {
                 const div = document.createElement('div');
-                div.className = 'flex justify-center gap-1.5';
+                div.className = 'flex justify-center gap-1.5 w-full';
                 if (idx === 2) {
-                    const enter = createKey('ENTER', 'bg-gray-200 px-3 text-xs text-gray-700');
+                    const enter = createKey('ENTER', 'px-5 text-[9px] bg-slate-200 text-slate-700 tracking-widest');
                     enter.onclick = submitGuess;
                     div.appendChild(enter);
                 }
                 row.split('').forEach(char => {
-                    const key = createKey(char, 'bg-gray-200 w-9 h-14 text-gray-700');
+                    const key = createKey(char, 'flex-1 bg-slate-200 text-slate-700 h-14');
                     key.id = `key-${char}`;
                     key.onclick = () => addLetter(char);
                     div.appendChild(key);
                 });
                 if (idx === 2) {
-                    const back = createKey('', 'bg-gray-200 px-3 text-gray-700');
-                    back.innerHTML = '<i data-feather="delete" class="w-5 h-5 mx-auto"></i>';
+                    const back = createKey('', 'px-5 bg-slate-200 text-slate-700');
+                    back.innerHTML = '<i data-feather="delete" class="w-4 h-4 mx-auto"></i>';
                     back.onclick = deleteLetter;
                     div.appendChild(back);
                 }
@@ -476,9 +730,9 @@
             feather.replace();
         }
 
-        function createKey(label, classes) {
+        function createKey(label, extraClasses) {
             const btn = document.createElement('button');
-            btn.className = `${classes} rounded font-bold hover:bg-gray-300 transition active:scale-95 uppercase`;
+            btn.className = `key-btn rounded-xl font-black uppercase transition-all shadow-sm ${extraClasses}`;
             btn.innerText = label;
             return btn;
         }
@@ -486,8 +740,12 @@
         function showMessage(msg) {
             const box = document.getElementById('messageBox');
             box.innerText = msg;
-            box.classList.replace('opacity-0', 'opacity-100');
-            setTimeout(() => box.classList.replace('opacity-100', 'opacity-0'), 2500);
+            box.classList.remove('opacity-0', 'translate-y-4');
+            box.classList.add('opacity-100');
+            setTimeout(() => {
+                box.classList.remove('opacity-100');
+                box.classList.add('opacity-0', 'translate-y-4');
+            }, 2500);
         }
 
         window.onload = init;
