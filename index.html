@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom Wordle Maker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/feather-icons"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-5px); }
+            40%, 80% { transform: translateX(5px); }
+        }
+        .animate-shake { animation: shake 0.2s ease-in-out 2; }
+        .tile { transition: transform 0.6s, background-color 0.6s; transform-style: preserve-3d; }
+        .flip { transform: rotateX(180deg); }
+        .tile-correct { background-color: #6aaa64 !important; border-color: #6aaa64 !important; color: white !important; }
+        .tile-present { background-color: #c9b458 !important; border-color: #c9b458 !important; color: white !important; }
+        .tile-absent { background-color: #787c7e !important; border-color: #787c7e !important; color: white !important; }
+        .tile-empty { border-color: #d3d6da; color: black; }
+        .tile-active { border-color: #878a8c; color: black; }
+        .modal-overlay { background: rgba(0,0,0,0.5); backdrop-filter: blur(2px); }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen flex flex-col items-center">
+
+    <div id="app" class="w-full max-w-md px-4 py-8">
+        <header class="flex justify-between items-center mb-6 border-b border-gray-200 pb-4">
+            <button id="navHomeBtn" class="p-2 hover:bg-gray-200 rounded-full transition text-gray-600">
+                <i data-feather="home"></i>
+            </button>
+            <h1 class="text-2xl font-black tracking-tighter text-center flex-1">WORDLE <span class="text-green-600">CUSTOM</span></h1>
+            <button id="authBtn" class="p-2 hover:bg-gray-200 rounded-full transition text-gray-600">
+                <i data-feather="user"></i>
+            </button>
+        </header>
+
+        <div id="authView" class="hidden space-y-4 text-center">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                <h2 id="authTitle" class="text-xl font-bold mb-4">Login / Sign Up</h2>
+                <input type="email" id="emailInput" placeholder="Email" class="w-full mb-3 p-3 bg-gray-50 border border-gray-300 rounded focus:ring-2 focus:ring-green-500 outline-none">
+                <input type="password" id="passwordInput" placeholder="Password" class="w-full mb-4 p-3 bg-gray-50 border border-gray-300 rounded focus:ring-2 focus:ring-green-500 outline-none">
+                <div class="grid grid-cols-2 gap-2">
+                    <button id="loginBtn" class="bg-green-600 text-white py-2 rounded font-bold hover:bg-green-700">Login</button>
+                    <button id="signUpBtn" class="border border-green-600 text-green-600 py-2 rounded font-bold hover:bg-green-50">Sign Up</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="dashboardView" class="hidden space-y-6">
+            <div class="flex justify-between items-center bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                <div id="userEmail" class="text-sm font-medium text-gray-500 truncate mr-2"></div>
+                <button id="logoutBtn" class="text-xs text-red-600 font-bold uppercase tracking-wider">Logout</button>
+            </div>
+
+            <div class="space-y-2">
+                <h3 class="font-bold text-gray-400 uppercase text-xs tracking-widest px-1">Created By You</h3>
+                <div id="createdList" class="space-y-2"></div>
+            </div>
+
+            <div class="space-y-2">
+                <h3 class="font-bold text-gray-400 uppercase text-xs tracking-widest px-1">Saved Wordles</h3>
+                <div id="savedList" class="space-y-2"></div>
+            </div>
+
+            <button id="createNewBtn" class="w-full bg-green-600 text-white py-4 rounded-xl font-bold shadow-lg hover:bg-green-700 transition flex items-center justify-center gap-2">
+                <i data-feather="plus"></i> Create New Wordle
+            </button>
+        </div>
+
+        <div id="createMode" class="space-y-6">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                <h2 class="text-xl font-semibold mb-4 text-gray-800">Design Challenge</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">Secret Word</label>
+                        <input type="text" id="targetWordInput" class="w-full bg-gray-50 border border-gray-300 p-3 rounded text-center text-2xl uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-800" placeholder="ANY LENGTH">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-600 mb-1">Optional Hint</label>
+                        <input type="text" id="hintInput" placeholder="Clue for the player" class="w-full bg-gray-50 border border-gray-300 p-3 rounded focus:outline-none focus:ring-2 focus:ring-green-500 text-gray-800">
+                    </div>
+                    <button id="generateBtn" class="w-full bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-bold transition flex items-center justify-center gap-2">
+                        <i data-feather="zap" class="w-5 h-5 text-yellow-300 fill-current"></i> Create Wordle
+                    </button>
+                </div>
+            </div>
+
+            <div id="shareSection" class="hidden bg-white p-6 rounded-xl border-2 border-green-500 shadow-sm">
+                <p class="text-sm text-gray-600 mb-2 font-medium">Link Created!</p>
+                <div class="flex gap-2">
+                    <input type="text" id="shareUrl" readonly class="flex-1 bg-gray-50 p-2 rounded text-sm border border-gray-200 text-gray-700">
+                    <button id="copyBtn" class="bg-blue-600 text-white p-2 rounded hover:bg-blue-700"><i data-feather="copy" class="w-5 h-5"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <div id="gameMode" class="hidden flex flex-col items-center gap-6">
+            <div id="gameHint" class="text-gray-500 italic text-center text-sm mb-2 font-medium bg-gray-100 px-4 py-1 rounded-full"></div>
+            <div id="grid" class="grid gap-1.5 mb-4"></div>
+            <div id="keyboard" class="w-full max-w-sm space-y-2"></div>
+        </div>
+    </div>
+
+    <div id="endModal" class="hidden fixed inset-0 z-[60] flex items-center justify-center p-4 modal-overlay">
+        <div class="bg-white w-full max-w-sm rounded-2xl p-8 shadow-2xl text-center space-y-6">
+            <div id="modalIcon" class="mx-auto w-16 h-16 rounded-full flex items-center justify-center"></div>
+            <div>
+                <h2 id="modalTitle" class="text-2xl font-black"></h2>
+                <p id="modalSub" class="text-gray-500 mt-1"></p>
+            </div>
+            <div class="flex flex-col gap-3">
+                <button id="modalSaveBtn" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2">
+                    <i data-feather="bookmark" class="w-4 h-4"></i> Save to Collection
+                </button>
+                <button id="modalCreateBtn" class="w-full bg-green-600 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2">
+                    <i data-feather="plus" class="w-4 h-4"></i> Create My Own
+                </button>
+                <button id="modalCloseBtn" class="text-gray-400 font-medium text-sm">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="messageBox" class="fixed top-24 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-6 py-3 rounded-lg font-bold shadow-2xl opacity-0 transition-opacity duration-300 pointer-events-none z-[70]"></div>
+
+    <script>
+        const SUPABASE_URL = 'https://zhohhkuujpoxynxhvrev.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_5Wa_plUml3d0wOyl4yDgZw_u6bOLFBK';
+        const SITE_URL = 'https://customwordlemaker.pages.dev/';
+        const sbClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let gameState = {
+            targetWord: '',
+            hint: '',
+            currentRow: 0,
+            currentTile: 0,
+            wordLength: 5,
+            guesses: Array(6).fill(''),
+            gameOver: false,
+            id: null,
+            user: null
+        };
+
+        const createView = document.getElementById('createMode');
+        const gameView = document.getElementById('gameMode');
+        const dashboardView = document.getElementById('dashboardView');
+        const authView = document.getElementById('authView');
+        const grid = document.getElementById('grid');
+        const keyboard = document.getElementById('keyboard');
+
+        async function init() {
+            const { data: { session } } = await sbClient.auth.getSession();
+            handleAuthStateChange(session?.user);
+
+            sbClient.auth.onAuthStateChange((_event, session) => {
+                handleAuthStateChange(session?.user);
+                if (session?.user) {
+                    if (gameView.classList.contains('hidden')) {
+                        showDashboard();
+                    } else {
+                        showMessage("Logged in!");
+                    }
+                } else {
+                    showAuth();
+                }
+            });
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const wordleId = urlParams.get('wordle');
+
+            if (wordleId) {
+                await loadGame(wordleId);
+            } else if (session?.user) {
+                showDashboard();
+            } else {
+                showCreate();
+            }
+
+            setupEventListeners();
+            feather.replace();
+        }
+
+        function handleAuthStateChange(user) {
+            gameState.user = user;
+            if (user) {
+                document.getElementById('userEmail').innerText = user.email;
+                loadDashboardData();
+            }
+        }
+
+        async function loadDashboardData() {
+            if (!gameState.user) return;
+            const created = await sbClient.from('custom_wordles').select('*').eq('created_by', gameState.user.id);
+            const saved = await sbClient.from('saved_wordles').select('custom_wordles(*)').eq('user_id', gameState.user.id);
+
+            renderList('createdList', created.data || []);
+            renderList('savedList', saved.data?.map(s => s.custom_wordles).filter(x => x) || []);
+        }
+
+        function renderList(containerId, data) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = data.length ? '' : '<p class="text-sm text-gray-400 italic px-2">No wordles found</p>';
+            data.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'bg-white p-3 rounded-lg border border-gray-200 flex justify-between items-center shadow-sm hover:border-green-500 cursor-pointer group';
+                div.innerHTML = `
+                    <div>
+                        <div class="font-bold text-gray-800 uppercase tracking-wide">${item.word}</div>
+                        <div class="text-[10px] text-gray-400 font-mono">${item.id}</div>
+                    </div>
+                    <i data-feather="chevron-right" class="w-4 h-4 text-gray-300 group-hover:text-green-500"></i>
+                `;
+                div.onclick = () => window.location.search = `?wordle=${item.id}`;
+                container.appendChild(div);
+            });
+            feather.replace();
+        }
+
+        async function loadGame(id) {
+            const { data, error } = await sbClient.from('custom_wordles').select('*').eq('id', id).single();
+            if (error || !data) {
+                showMessage("Game not found!");
+                return;
+            }
+            gameState.targetWord = data.word.toUpperCase();
+            gameState.wordLength = data.word.length;
+            gameState.hint = data.hint;
+            gameState.id = id;
+            gameState.guesses = Array(6).fill('');
+            gameState.currentRow = 0;
+            gameState.currentTile = 0;
+            gameState.gameOver = false;
+            
+            [createView, dashboardView, authView].forEach(v => v.classList.add('hidden'));
+            gameView.classList.remove('hidden');
+            document.getElementById('gameHint').innerText = data.hint ? `Hint: ${data.hint}` : '';
+            document.getElementById('gameHint').classList.toggle('hidden', !data.hint);
+            renderGrid();
+            renderKeyboard();
+        }
+
+        function renderGrid() {
+            grid.innerHTML = '';
+            grid.style.gridTemplateColumns = `repeat(${gameState.wordLength}, 1fr)`;
+            for (let i = 0; i < 6 * gameState.wordLength; i++) {
+                const tile = document.createElement('div');
+                tile.className = 'w-12 h-12 border-2 tile-empty flex items-center justify-center text-2xl font-bold uppercase rounded-sm tile';
+                tile.id = `tile-${i}`;
+                grid.appendChild(tile);
+            }
+        }
+
+        function setupEventListeners() {
+            document.getElementById('generateBtn').onclick = async () => {
+                const word = document.getElementById('targetWordInput').value.trim().toUpperCase();
+                const hint = document.getElementById('hintInput').value.trim();
+                if (word.length < 1) return showMessage("Word too short");
+
+                const { data, error } = await sbClient.from('custom_wordles').insert([{ word, hint, created_by: gameState.user?.id }]).select();
+                if (error) return showMessage("Error saving");
+                
+                const link = `${SITE_URL}?wordle=${data[0].id}`;
+                document.getElementById('shareUrl').value = link;
+                document.getElementById('shareSection').classList.remove('hidden');
+                feather.replace();
+            };
+
+            document.getElementById('copyBtn').onclick = () => {
+                const copyText = document.getElementById('shareUrl');
+                copyText.select();
+                document.execCommand("copy");
+                showMessage("Link copied!");
+            };
+
+            document.getElementById('authBtn').onclick = () => {
+                if (gameState.user) showDashboard();
+                else showAuth();
+            };
+
+            document.getElementById('loginBtn').onclick = async () => {
+                const email = document.getElementById('emailInput').value;
+                const password = document.getElementById('passwordInput').value;
+                const { error } = await sbClient.auth.signInWithPassword({ email, password });
+                if (error) showMessage(error.message);
+                else showDashboard();
+            };
+
+            document.getElementById('signUpBtn').onclick = async () => {
+                const email = document.getElementById('emailInput').value;
+                const password = document.getElementById('passwordInput').value;
+                const { error } = await sbClient.auth.signUp({ email, password });
+                if (error) showMessage(error.message);
+                else showMessage("Signup successful! You can now login.");
+            };
+
+            document.getElementById('logoutBtn').onclick = async () => {
+                await sbClient.auth.signOut();
+                window.location.href = SITE_URL;
+            };
+
+            document.getElementById('createNewBtn').onclick = showCreate;
+            document.getElementById('navHomeBtn').onclick = () => window.location.href = SITE_URL;
+
+            document.getElementById('modalSaveBtn').onclick = async () => {
+                if (!gameState.user) {
+                    document.getElementById('endModal').classList.add('hidden');
+                    showAuth();
+                    return;
+                }
+                const { error } = await sbClient.from('saved_wordles').insert([{ user_id: gameState.user.id, wordle_id: gameState.id }]);
+                if (error) showMessage(error.code === '23505' ? "Already saved!" : "Error saving");
+                else showMessage("Added to collection!");
+            };
+
+            document.getElementById('modalCreateBtn').onclick = () => window.location.href = SITE_URL;
+            document.getElementById('modalCloseBtn').onclick = () => document.getElementById('endModal').classList.add('hidden');
+
+            window.addEventListener('keydown', (e) => {
+                if (gameState.gameOver || gameView.classList.contains('hidden')) return;
+                if (e.key === 'Enter') submitGuess();
+                else if (e.key === 'Backspace') deleteLetter();
+                else if (/^[a-zA-Z]$/.test(e.key)) addLetter(e.key.toUpperCase());
+            });
+        }
+
+        function showDashboard() {
+            [createView, gameView, authView].forEach(v => v.classList.add('hidden'));
+            dashboardView.classList.remove('hidden');
+            loadDashboardData();
+        }
+
+        function showAuth() {
+            [createView, gameView, dashboardView].forEach(v => v.classList.add('hidden'));
+            authView.classList.remove('hidden');
+        }
+
+        function showCreate() {
+            [dashboardView, gameView, authView].forEach(v => v.classList.add('hidden'));
+            createView.classList.remove('hidden');
+        }
+
+        function addLetter(letter) {
+            if (gameState.currentTile < gameState.wordLength) {
+                const index = (gameState.currentRow * gameState.wordLength) + gameState.currentTile;
+                const tile = document.getElementById(`tile-${index}`);
+                tile.innerText = letter;
+                tile.classList.replace('tile-empty', 'tile-active');
+                gameState.guesses[gameState.currentRow] += letter;
+                gameState.currentTile++;
+            }
+        }
+
+        function deleteLetter() {
+            if (gameState.currentTile > 0) {
+                gameState.currentTile--;
+                const index = (gameState.currentRow * gameState.wordLength) + gameState.currentTile;
+                const tile = document.getElementById(`tile-${index}`);
+                tile.innerText = '';
+                tile.classList.replace('tile-active', 'tile-empty');
+                gameState.guesses[gameState.currentRow] = gameState.guesses[gameState.currentRow].slice(0, -1);
+            }
+        }
+
+        async function submitGuess() {
+            const guess = gameState.guesses[gameState.currentRow];
+            if (guess.length !== gameState.wordLength) {
+                shakeRow();
+                return showMessage("Not enough letters");
+            }
+
+            const rowStart = gameState.currentRow * gameState.wordLength;
+            const targetArr = gameState.targetWord.split('');
+            const guessArr = guess.split('');
+            const statuses = Array(gameState.wordLength).fill('absent');
+
+            guessArr.forEach((char, i) => {
+                if (char === targetArr[i]) {
+                    statuses[i] = 'correct';
+                    targetArr[i] = null;
+                }
+            });
+
+            guessArr.forEach((char, i) => {
+                if (statuses[i] !== 'correct' && targetArr.includes(char)) {
+                    statuses[i] = 'present';
+                    targetArr[targetArr.indexOf(char)] = null;
+                }
+            });
+
+            for (let i = 0; i < gameState.wordLength; i++) {
+                const tile = document.getElementById(`tile-${rowStart + i}`);
+                setTimeout(() => {
+                    tile.classList.add('flip');
+                    tile.classList.remove('tile-active', 'tile-empty');
+                    if (statuses[i] === 'correct') tile.classList.add('tile-correct');
+                    else if (statuses[i] === 'present') tile.classList.add('tile-present');
+                    else tile.classList.add('tile-absent');
+                    updateKeyColor(guessArr[i], statuses[i]);
+                }, i * 150);
+            }
+
+            if (guess === gameState.targetWord || gameState.currentRow === 5) {
+                gameState.gameOver = true;
+                setTimeout(() => showEndModal(guess === gameState.targetWord), gameState.wordLength * 200 + 500);
+            } else {
+                gameState.currentRow++;
+                gameState.currentTile = 0;
+            }
+        }
+
+        function showEndModal(win) {
+            const modal = document.getElementById('endModal');
+            const icon = document.getElementById('modalIcon');
+            const title = document.getElementById('modalTitle');
+            const sub = document.getElementById('modalSub');
+
+            title.innerText = win ? "Splendid!" : "Better luck next time";
+            sub.innerText = win ? `You guessed "${gameState.targetWord}"` : `The word was "${gameState.targetWord}"`;
+            icon.className = `mx-auto w-16 h-16 rounded-full flex items-center justify-center ${win ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'}`;
+            icon.innerHTML = `<i data-feather="${win ? 'award' : 'frown'}"></i>`;
+            
+            modal.classList.remove('hidden');
+            feather.replace();
+        }
+
+        function updateKeyColor(key, status) {
+            const btn = document.getElementById(`key-${key}`);
+            if (!btn) return;
+            if (status === 'correct') {
+                btn.classList.remove('bg-gray-200', 'bg-[#c9b458]');
+                btn.classList.add('bg-[#6aaa64]', 'text-white');
+            } else if (status === 'present' && !btn.classList.contains('bg-[#6aaa64]')) {
+                btn.classList.remove('bg-gray-200');
+                btn.classList.add('bg-[#c9b458]', 'text-white');
+            } else if (status === 'absent' && !btn.classList.contains('bg-[#6aaa64]') && !btn.classList.contains('bg-[#c9b458]')) {
+                btn.classList.remove('bg-gray-200');
+                btn.classList.add('bg-[#787c7e]', 'text-white');
+            }
+        }
+
+        function shakeRow() {
+            for (let i = 0; i < gameState.wordLength; i++) {
+                const tile = document.getElementById(`tile-${(gameState.currentRow * gameState.wordLength) + i}`);
+                tile.classList.add('animate-shake');
+                setTimeout(() => tile.classList.remove('animate-shake'), 500);
+            }
+        }
+
+        function renderKeyboard() {
+            const rows = ['QWERTYUIOP', 'ASDFGHJKL', 'ZXCVBNM'];
+            keyboard.innerHTML = '';
+            rows.forEach((row, idx) => {
+                const div = document.createElement('div');
+                div.className = 'flex justify-center gap-1.5';
+                if (idx === 2) {
+                    const enter = createKey('ENTER', 'bg-gray-200 px-3 text-xs text-gray-700');
+                    enter.onclick = submitGuess;
+                    div.appendChild(enter);
+                }
+                row.split('').forEach(char => {
+                    const key = createKey(char, 'bg-gray-200 w-9 h-14 text-gray-700');
+                    key.id = `key-${char}`;
+                    key.onclick = () => addLetter(char);
+                    div.appendChild(key);
+                });
+                if (idx === 2) {
+                    const back = createKey('', 'bg-gray-200 px-3 text-gray-700');
+                    back.innerHTML = '<i data-feather="delete" class="w-5 h-5 mx-auto"></i>';
+                    back.onclick = deleteLetter;
+                    div.appendChild(back);
+                }
+                keyboard.appendChild(div);
+            });
+            feather.replace();
+        }
+
+        function createKey(label, classes) {
+            const btn = document.createElement('button');
+            btn.className = `${classes} rounded font-bold hover:bg-gray-300 transition active:scale-95 uppercase`;
+            btn.innerText = label;
+            return btn;
+        }
+
+        function showMessage(msg) {
+            const box = document.getElementById('messageBox');
+            box.innerText = msg;
+            box.classList.replace('opacity-0', 'opacity-100');
+            setTimeout(() => box.classList.replace('opacity-100', 'opacity-0'), 2500);
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
